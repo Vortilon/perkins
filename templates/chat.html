@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perkins AI – Report vs MPD</title>
+  <style>
+    :root { --bg: #0f1419; --surface: #1a2332; --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 1rem; min-height: 100vh; }
+    h1 { font-size: 1.25rem; margin-bottom: 1rem; }
+    .panel { background: var(--surface); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+    label { display: block; margin-bottom: 0.25rem; color: var(--muted); font-size: 0.875rem; }
+    textarea { width: 100%; min-height: 80px; background: #0d1117; border: 1px solid #30363d; color: var(--text); padding: 0.5rem; border-radius: 6px; resize: vertical; }
+    button { background: var(--accent); color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    #result { white-space: pre-wrap; font-size: 0.875rem; }
+    .err { color: #f85149; }
+  </style>
+</head>
+<body>
+  <h1>Perkins AI – Report vs MPD analysis</h1>
+  <div class="panel">
+    <label>Report text (from PDF/Excel/Word)</label>
+    <textarea id="report" placeholder="Paste extracted report excerpt..."></textarea>
+  </div>
+  <div class="panel">
+    <label>MPD context</label>
+    <textarea id="mpd" placeholder="Paste MPD task / data or leave blank."></textarea>
+  </div>
+  <button id="btn">Analyze</button>
+  <div class="panel" id="out" style="margin-top: 1rem; display: none;">
+    <label>Result</label>
+    <pre id="result"></pre>
+  </div>
+  <script>
+    const report = document.getElementById('report');
+    const mpd = document.getElementById('mpd');
+    const btn = document.getElementById('btn');
+    const out = document.getElementById('out');
+    const result = document.getElementById('result');
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      result.classList.remove('err');
+      result.textContent = 'Loading...';
+      out.style.display = 'block';
+      try {
+        const r = await fetch('/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ report_text: report.value.trim(), mpd_context: mpd.value.trim() || '' })
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || r.statusText);
+        result.textContent = JSON.stringify(data, null, 2);
+      } catch (e) {
+        result.textContent = e.message || String(e);
+        result.classList.add('err');
+      }
+      btn.disabled = false;
+    });
+  </script>
+</body>
+</html>
