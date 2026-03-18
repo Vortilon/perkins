@@ -8,7 +8,10 @@
     :root { --bg: #0f1419; --surface: #1a2332; --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; }
     * { box-sizing: border-box; }
     body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 1rem; min-height: 100vh; }
-    h1 { font-size: 1.25rem; margin-bottom: 1rem; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    h1 { font-size: 1.25rem; margin: 0; }
+    a { color: var(--muted); font-size: 0.875rem; text-decoration: none; }
+    a:hover { color: var(--accent); }
     .panel { background: var(--surface); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
     label { display: block; margin-bottom: 0.25rem; color: var(--muted); font-size: 0.875rem; }
     textarea { width: 100%; min-height: 80px; background: #0d1117; border: 1px solid #30363d; color: var(--text); padding: 0.5rem; border-radius: 6px; resize: vertical; }
@@ -19,7 +22,10 @@
   </style>
 </head>
 <body>
-  <h1>Perkins AI – Report vs MPD analysis</h1>
+  <div class="header">
+    <h1>Perkins AI – Report vs MPD analysis</h1>
+    <a href="/logout">Log out</a>
+  </div>
   <div class="panel">
     <label>Report text (from PDF/Excel/Word)</label>
     <textarea id="report" placeholder="Paste extracted report excerpt..."></textarea>
@@ -48,8 +54,10 @@
         const r = await fetch('/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
           body: JSON.stringify({ report_text: report.value.trim(), mpd_context: mpd.value.trim() || '' })
         });
+        if (r.status === 401) { window.location.href = '/login'; return; }
         const data = await r.json();
         if (!r.ok) throw new Error(data.detail || r.statusText);
         result.textContent = JSON.stringify(data, null, 2);
