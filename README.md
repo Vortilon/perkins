@@ -11,7 +11,7 @@ Private 24/7 AI backend on Ubuntu VPS for aviation-technical reasoning: compare 
 SSH in, then run (clone + full setup):
 
 ```bash
-git clone https://github.com/vortilon/perkins.git /root/perkins && cd /root/perkins && bash scripts/deploy-on-vps.sh
+git clone https://github.com/Vortilon/perkins.git /root/perkins && cd /root/perkins && bash scripts/deploy-on-vps.sh
 ```
 
 Or if repo already at `/root/perkins`:

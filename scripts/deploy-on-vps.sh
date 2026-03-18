@@ -1,14 +1,14 @@
 #!/bin/bash
 # Run on VPS (as root) to finish Step 1 and run Steps 2–7.
-# Option A: git clone https://github.com/vortilon/perkins.git /root/perkins && cd /root/perkins && bash scripts/deploy-on-vps.sh
+# Option A: git clone https://github.com/Vortilon/perkins.git /root/perkins && cd /root/perkins && bash scripts/deploy-on-vps.sh
 # Option B: run from repo root after clone/pull
 
 set -e
 PERKINS_ROOT="${PERKINS_ROOT:-/root/perkins}"
 if [ ! -f "$PERKINS_ROOT/main.py" ]; then
-  git clone https://github.com/vortilon/perkins.git "$PERKINS_ROOT" || true
+  git clone https://github.com/Vortilon/perkins.git "$PERKINS_ROOT" || true
 fi
-cd "$PERKINS_ROOT" || { echo "Clone repo first: git clone https://github.com/vortilon/perkins.git $PERKINS_ROOT"; exit 1; }
+cd "$PERKINS_ROOT" || { echo "Clone repo first: git clone https://github.com/Vortilon/perkins.git $PERKINS_ROOT"; exit 1; }
 
 echo "=== Step 1 (finish): SSH hardening ==="
 mkdir -p /root/.ssh
@@ -37,7 +37,7 @@ ollama list | grep -q "qwen2.5:3b-instruct" || ollama pull qwen2.5:3b-instruct
 ollama list | grep -q "perkins-ai" || ollama create perkins-ai -f "$PERKINS_ROOT/Modelfile"
 
 echo "=== Step 4: Project (already in $PERKINS_ROOT) ==="
-git remote -v | grep -q origin || git remote add origin https://github.com/vortilon/perkins.git
+git remote -v | grep -q origin || git remote add origin https://github.com/Vortilon/perkins.git
 git fetch origin 2>/dev/null || true
 
 echo "=== Step 5/6: Code in place ==="
