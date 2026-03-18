@@ -1,8 +1,8 @@
-"""FastAPI routes: /, /login, /analyze, /chat, /ping."""
+"""FastAPI routes: /, /login, /upload, /analyze, /chat, /ping."""
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 
@@ -10,6 +10,7 @@ from comparison.comparator import compare_report_mpd
 from models.ollama_client import ping as ollama_ping
 
 from auth import verify_password, create_token, verify_token, COOKIE_NAME
+from extraction.extractors import extract_text
 
 router = APIRouter()
 
@@ -79,6 +80,38 @@ class AnalyzeResponse(BaseModel):
     driver: str
     recommendations: list[str]
     compliance_notes: str
+
+
+@router.post("/upload")
+async def upload(
+    file: UploadFile = File(...),
+    auth: bool = Depends(is_authenticated),
+):
+    """Upload a PDF/DOCX/XLSX/TXT and return extracted text (requires login)."""
+    if not auth:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="Empty file")
+    if len(data) > 25 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File too large (max 25MB)")
+
+    try:
+        text = extract_text(file.filename or "", file.content_type, data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Extraction failed: {e!s}")
+
+    if not text.strip():
+        return {
+            "filename": file.filename,
+            "content_type": file.content_type,
+            "text": "",
+            "warning": "No text extracted. If this PDF is scanned/image-based, OCR is required.",
+        }
+    return {"filename": file.filename, "content_type": file.content_type, "text": text}
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)

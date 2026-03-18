@@ -3,69 +3,326 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Perkins AI – Report vs MPD</title>
+  <title>Perkins – Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    :root { --bg: #0f1419; --surface: #1a2332; --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; }
     * { box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 1rem; min-height: 100vh; }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    h1 { font-size: 1.25rem; margin: 0; }
-    a { color: var(--muted); font-size: 0.875rem; text-decoration: none; }
-    a:hover { color: var(--accent); }
-    .panel { background: var(--surface); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
-    label { display: block; margin-bottom: 0.25rem; color: var(--muted); font-size: 0.875rem; }
-    textarea { width: 100%; min-height: 80px; background: #0d1117; border: 1px solid #30363d; color: var(--text); padding: 0.5rem; border-radius: 6px; resize: vertical; }
-    button { background: var(--accent); color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
-    button:disabled { opacity: 0.6; cursor: not-allowed; }
-    #result { white-space: pre-wrap; font-size: 0.875rem; }
-    .err { color: #f85149; }
+    :root {
+      --bg: #ffffff;
+      --panel: #ffffff;
+      --text: #0d0d0d;
+      --muted: #6e6e80;
+      --border: #e5e5e5;
+      --shadow: 0 2px 10px rgba(0,0,0,0.06);
+      --radius: 12px;
+      --btn: #0d0d0d;
+      --btnHover: #2d2d2d;
+      --userBubble: #0d0d0d;
+      --userText: #ffffff;
+      --assistantBubble: #f7f7f8;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+    }
+    .brand .logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: rgb(192,0,0);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .topbar a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    .topbar a:hover { color: var(--text); }
+
+    .wrap {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0;
+      overflow: hidden;
+    }
+    .messages {
+      overflow: auto;
+      padding: 18px;
+    }
+    .msg {
+      display: flex;
+      margin: 10px 0;
+    }
+    .msg.user { justify-content: flex-end; }
+    .bubble {
+      max-width: 900px;
+      width: fit-content;
+      border-radius: 14px;
+      padding: 12px 14px;
+      box-shadow: none;
+      border: 1px solid var(--border);
+      background: var(--assistantBubble);
+      white-space: pre-wrap;
+      line-height: 1.35;
+      font-size: 0.95rem;
+    }
+    .msg.user .bubble {
+      background: var(--userBubble);
+      color: var(--userText);
+      border-color: var(--userBubble);
+    }
+    .meta {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 6px;
+    }
+    .composer {
+      border-top: 1px solid var(--border);
+      background: var(--panel);
+      padding: 14px 18px;
+    }
+    .composer-inner {
+      max-width: 980px;
+      margin: 0 auto;
+      display: grid;
+      gap: 10px;
+    }
+    details {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #fff;
+    }
+    summary {
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 500;
+      list-style: none;
+    }
+    summary::-webkit-details-marker { display: none; }
+    textarea {
+      width: 100%;
+      min-height: 90px;
+      resize: vertical;
+      padding: 12px 12px;
+      font-family: inherit;
+      font-size: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      outline: none;
+    }
+    textarea:focus { border-color: #bdbdbd; }
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    .left {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .btn {
+      background: var(--btn);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.95rem;
+    }
+    .btn:hover { background: var(--btnHover); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .ghost {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .ghost:hover { background: #f7f7f8; }
+    .hint { color: var(--muted); font-size: 0.9rem; }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>Perkins AI – Report vs MPD analysis</h1>
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo" title="Logo placeholder">DAE</div>
+      <div>Perkins</div>
+    </div>
     <a href="/logout">Log out</a>
   </div>
-  <div class="panel">
-    <label>Report text (from PDF/Excel/Word)</label>
-    <textarea id="report" placeholder="Paste extracted report excerpt..."></textarea>
+
+  <div class="wrap">
+    <div class="messages" id="messages"></div>
   </div>
-  <div class="panel">
-    <label>MPD context</label>
-    <textarea id="mpd" placeholder="Paste MPD task / data or leave blank."></textarea>
-  </div>
-  <button id="btn">Analyze</button>
-  <div class="panel" id="out" style="margin-top: 1rem; display: none;">
-    <label>Result</label>
-    <pre id="result"></pre>
+
+  <div class="composer">
+    <div class="composer-inner">
+      <details>
+        <summary>MPD context (optional)</summary>
+        <div style="margin-top: 10px;">
+          <textarea id="mpd" placeholder="Paste MPD task/data (or leave blank)."></textarea>
+        </div>
+      </details>
+
+      <textarea id="input" placeholder="Paste report text, or upload a PDF/DOCX/XLSX/TXT…"></textarea>
+
+      <div class="row">
+        <div class="left">
+          <input id="file" type="file" accept=\".pdf,.docx,.xlsx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain\" />
+          <button class="btn ghost" id="uploadBtn" type="button">Upload → Extract text</button>
+          <button class="btn ghost" id="clearBtn" type="button">Clear history</button>
+        </div>
+        <div class="left">
+          <span class="hint" id="status"></span>
+          <button class="btn" id="sendBtn" type="button">Send</button>
+        </div>
+      </div>
+    </div>
   </div>
   <script>
-    const report = document.getElementById('report');
-    const mpd = document.getElementById('mpd');
-    const btn = document.getElementById('btn');
-    const out = document.getElementById('out');
-    const result = document.getElementById('result');
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      result.classList.remove('err');
-      result.textContent = 'Loading...';
-      out.style.display = 'block';
+    const STORAGE_KEY = 'perkins_chat_history_v1';
+    const messagesEl = document.getElementById('messages');
+    const mpdEl = document.getElementById('mpd');
+    const inputEl = document.getElementById('input');
+    const sendBtn = document.getElementById('sendBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const fileEl = document.getElementById('file');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const statusEl = document.getElementById('status');
+
+    function loadHistory() {
       try {
-        const r = await fetch('/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'same-origin',
-          body: JSON.stringify({ report_text: report.value.trim(), mpd_context: mpd.value.trim() || '' })
-        });
-        if (r.status === 401) { window.location.href = '/login'; return; }
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveHistory(items) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(-200)));
+    }
+
+    let history = loadHistory();
+
+    function addMessage(role, text) {
+      const msg = { role, text, ts: Date.now() };
+      history.push(msg);
+      saveHistory(history);
+      render();
+    }
+
+    function render() {
+      messagesEl.innerHTML = '';
+      for (const m of history) {
+        const row = document.createElement('div');
+        row.className = 'msg ' + (m.role === 'user' ? 'user' : 'assistant');
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        bubble.textContent = m.text;
+        row.appendChild(bubble);
+        messagesEl.appendChild(row);
+      }
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    render();
+
+    async function apiJson(url, options) {
+      const r = await fetch(url, { credentials: 'same-origin', ...options });
+      if (r.status === 401) { window.location.href = '/login'; return null; }
+      return r;
+    }
+
+    uploadBtn.addEventListener('click', async () => {
+      const f = fileEl.files && fileEl.files[0];
+      if (!f) { statusEl.textContent = 'Choose a file first.'; return; }
+      statusEl.textContent = 'Extracting…';
+      uploadBtn.disabled = true;
+      try {
+        const fd = new FormData();
+        fd.append('file', f);
+        const r = await apiJson('/upload', { method: 'POST', body: fd });
+        if (!r) return;
         const data = await r.json();
         if (!r.ok) throw new Error(data.detail || r.statusText);
-        result.textContent = JSON.stringify(data, null, 2);
+        inputEl.value = data.text || '';
+        statusEl.textContent = data.warning ? data.warning : 'Text extracted. Ready to send.';
       } catch (e) {
-        result.textContent = e.message || String(e);
-        result.classList.add('err');
+        statusEl.textContent = e.message || String(e);
+      } finally {
+        uploadBtn.disabled = false;
       }
-      btn.disabled = false;
+    });
+
+    clearBtn.addEventListener('click', () => {
+      history = [];
+      saveHistory(history);
+      render();
+      statusEl.textContent = 'History cleared.';
+    });
+
+    async function send() {
+      const report = (inputEl.value || '').trim();
+      const mpd = (mpdEl.value || '').trim();
+      if (!report) { statusEl.textContent = 'Paste text or upload a file first.'; return; }
+      sendBtn.disabled = true;
+      statusEl.textContent = 'Analyzing…';
+      addMessage('user', report);
+      try {
+        const r = await apiJson('/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ report_text: report, mpd_context: mpd })
+        });
+        if (!r) return;
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || r.statusText);
+        addMessage('assistant', JSON.stringify(data, null, 2));
+        inputEl.value = '';
+        statusEl.textContent = '';
+      } catch (e) {
+        addMessage('assistant', `Error: ${e.message || String(e)}`);
+        statusEl.textContent = e.message || String(e);
+      }
+      sendBtn.disabled = false;
+    }
+
+    sendBtn.addEventListener('click', send);
+    inputEl.addEventListener('keydown', (ev) => {
+      if ((ev.metaKey || ev.ctrlKey) && ev.key === 'Enter') send();
     });
   </script>
 </body>
