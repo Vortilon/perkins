@@ -263,13 +263,25 @@ async def analyze_conversation(
         if (not user.is_admin) and c.user_id != user.id:
             raise HTTPException(status_code=403, detail="Forbidden")
 
-        text = (report_text or "").strip()
-        if file is not None:
+        instruction = (report_text or "").strip()
+        file_text = ""
+        if file is not None and file.filename:
             data = await file.read()
-            text = extract_text(file.filename or "", file.content_type, data).strip()
+            if data:
+                try:
+                    file_text = extract_text(file.filename or "", file.content_type, data).strip()
+                except Exception as e:
+                    raise HTTPException(status_code=400, detail=f"Could not read file: {e}")
+
+        if instruction and file_text:
+            text = f"{instruction}\n\n--- Attached: {file.filename} ---\n{file_text}"
+        elif file_text:
+            text = f"--- Attached: {file.filename} ---\n{file_text}"
+        else:
+            text = instruction
 
         if not text:
-            raise HTTPException(status_code=400, detail="No report text provided")
+            raise HTTPException(status_code=400, detail="No report text or file provided")
 
         user_msg = Message(conversation_id=conversation_id, role="user", content=text)
         db.add(user_msg)

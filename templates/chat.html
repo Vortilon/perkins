@@ -606,7 +606,7 @@ async function send() {
   $('sendBtn').disabled = true;
   $('status').textContent = 'Analyzing…';
 
-  const label = file ? `📎 ${file.name}` : text;
+  const label = file && text ? `${text}\n📎 ${file.name}` : file ? `📎 ${file.name}` : text;
   renderMessage('user', label);
 
   const fd = new FormData();
