@@ -71,6 +71,8 @@ Then: `systemctl daemon-reload && systemctl restart perkins`
 
 ## Fine-tuning and next steps
 
+**New to this?** Read **[docs/FINE-TUNING.md](docs/FINE-TUNING.md)** for a plain-English explanation of how “fine-tuning” works and step-by-step instructions.
+
 ### Fine-tuning the model (Perkins AI behavior)
 
 1. **Edit the system prompt** in `Modelfile` (aviation/MSG-3 instructions, few-shot examples). Then on the VPS:
