@@ -137,6 +137,32 @@
     }
     .conv-item:hover { background: #ebebec; }
     .conv-item.active { background: #e3e3e5; font-weight: 500; }
+    .conv-row {
+      display: flex;
+      align-items: center;
+      border-radius: 8px;
+      position: relative;
+    }
+    .conv-row:hover { background: #ebebec; }
+    .conv-row:hover .del-btn { opacity: 1; }
+    .conv-row .conv-item {
+      flex: 1;
+      background: none;
+    }
+    .conv-row .conv-item:hover { background: none; }
+    .del-btn {
+      opacity: 0;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px 8px;
+      color: var(--muted);
+      font-size: 1rem;
+      border-radius: 6px;
+      flex-shrink: 0;
+      transition: opacity 0.15s;
+    }
+    .del-btn:hover { color: var(--red); background: rgba(192,0,0,0.06); }
 
     /* ── MAIN ── */
     .main {
@@ -370,7 +396,7 @@
             <input type="file" id="fileInput" accept=".pdf,.docx,.xlsx,.txt">
           </div>
 
-          <textarea id="input" placeholder="Or paste report text here…"></textarea>
+          <textarea id="input" placeholder="Type a message… (Enter to send, Shift+Enter for new line)"></textarea>
 
           <div class="row">
             <span class="hint" id="status"></span>
@@ -416,12 +442,35 @@ async function loadConversations() {
   const list = $('convList');
   list.innerHTML = '';
   for (const c of convs) {
+    const row = document.createElement('div');
+    row.className = 'conv-row';
+
     const el = document.createElement('div');
     el.className = 'conv-item' + (c.id === currentConvId ? ' active' : '');
     el.textContent = c.title;
     el.dataset.id = c.id;
     el.addEventListener('click', () => openConversation(c.id));
-    list.appendChild(el);
+
+    const del = document.createElement('button');
+    del.className = 'del-btn';
+    del.title = 'Delete conversation';
+    del.textContent = '🗑';
+    del.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm(`Delete "${c.title}"? This cannot be undone.`)) return;
+      const dr = await api(`/conversations/${c.id}`, { method: 'DELETE' });
+      if (dr && (dr.ok || dr.status === 204)) {
+        if (currentConvId === c.id) {
+          currentConvId = null;
+          $('messages').innerHTML = '<div class="welcome" id="welcome"><h2>Welcome to Perkins</h2><p>Select a conversation or start a new one.</p></div>';
+        }
+        await loadConversations();
+      }
+    });
+
+    row.appendChild(el);
+    row.appendChild(del);
+    list.appendChild(row);
   }
 }
 
@@ -542,7 +591,7 @@ async function ensureConversation() {
 /* ===== send ===== */
 $('sendBtn').addEventListener('click', send);
 $('input').addEventListener('keydown', e => {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send();
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
 });
 
 async function send() {
@@ -575,6 +624,11 @@ async function send() {
   try {
     const r = await api(`/conversations/${currentConvId}/analyze`, { method: 'POST', body: fd });
     if (!r) return;
+    const ct = r.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+      const txt = await r.text();
+      throw new Error(`Server error ${r.status} — file may be too large or unsupported format.`);
+    }
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || r.statusText);
     renderMessage('assistant', data.analysis, JSON.stringify(data));

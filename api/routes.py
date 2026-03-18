@@ -214,6 +214,17 @@ async def create_conversation(user: User = Depends(require_user)):
         return ConversationOut(id=c.id, title=c.title)
 
 
+@router.delete("/conversations/{conversation_id}", status_code=204)
+async def delete_conversation(conversation_id: int, user: User = Depends(require_user)):
+    with db_session() as db:
+        c = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+        if not c:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        if (not user.is_admin) and c.user_id != user.id:
+            raise HTTPException(status_code=403, detail="Forbidden")
+        db.delete(c)
+
+
 @router.get("/conversations/{conversation_id}/messages", response_model=list[MessageOut])
 async def get_messages(conversation_id: int, user: User = Depends(require_user)):
     with db_session() as db:
