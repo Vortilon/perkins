@@ -11,53 +11,68 @@
     * { box-sizing: border-box; }
     :root {
       --bg: #ffffff;
-      --panel: #ffffff;
+      --sidebar-bg: #f7f7f8;
+      --sidebar-w: 260px;
       --text: #0d0d0d;
       --muted: #6e6e80;
       --border: #e5e5e5;
-      --shadow: 0 2px 10px rgba(0,0,0,0.06);
-      --radius: 12px;
       --btn: #0d0d0d;
       --btnHover: #2d2d2d;
       --userBubble: #0d0d0d;
       --userText: #ffffff;
       --assistantBubble: #f7f7f8;
+      --red: rgb(192,0,0);
     }
+    html, body { height: 100%; margin: 0; overflow: hidden; }
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: var(--bg);
       color: var(--text);
-      margin: 0;
-      height: 100vh;
       display: flex;
       flex-direction: column;
+      height: 100vh;
     }
+
+    /* ── TOP BAR ── */
     .topbar {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 14px 18px;
+      padding: 0 18px;
+      height: 52px;
       border-bottom: 1px solid var(--border);
-      background: var(--panel);
+      flex-shrink: 0;
+      gap: 12px;
     }
+    .sidebar-toggle {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 1.2rem;
+      line-height: 1;
+    }
+    .sidebar-toggle:hover { background: var(--border); }
     .brand {
       display: flex;
       align-items: center;
       gap: 10px;
-      font-weight: 600;
+      flex: 1;
     }
-    .brand .logo {
-      width: 28px;
+    .brand img.logo {
       height: 28px;
-      border-radius: 8px;
-      background: rgb(192,0,0);
-      color: #fff;
-      display: grid;
-      place-items: center;
-      font-size: 0.85rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
+      width: auto;
     }
+    .brand-name { font-weight: 600; font-size: 1rem; }
+    .user-info {
+      font-size: 0.9rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .user-info span { font-weight: 500; color: var(--text); }
     .topbar a {
       color: var(--muted);
       text-decoration: none;
@@ -65,74 +80,210 @@
     }
     .topbar a:hover { color: var(--text); }
 
-    .wrap {
+    /* ── BODY = SIDEBAR + MAIN ── */
+    .shell {
       flex: 1;
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 0;
+      display: flex;
       overflow: hidden;
     }
-    .messages {
-      overflow: auto;
-      padding: 18px;
-    }
-    .msg {
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
       display: flex;
-      margin: 10px 0;
+      flex-direction: column;
+      transition: width 0.2s ease, padding 0.2s ease;
+      overflow: hidden;
+      flex-shrink: 0;
     }
+    .sidebar.closed { width: 0; border-right: none; }
+    .sidebar-header {
+      padding: 14px 14px 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .sidebar-header button {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 4px 8px;
+      color: var(--text);
+    }
+    .sidebar-header button:hover { background: var(--border); }
+    .conv-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 8px;
+    }
+    .conv-item {
+      padding: 9px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text);
+    }
+    .conv-item:hover { background: #ebebec; }
+    .conv-item.active { background: #e3e3e5; font-weight: 500; }
+
+    /* ── MAIN ── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── MESSAGES ── */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 18px;
+    }
+    .welcome {
+      text-align: center;
+      padding: 80px 20px 20px;
+      color: var(--muted);
+    }
+    .welcome h2 { font-size: 1.4rem; margin: 0 0 8px; color: var(--text); }
+    .welcome p { font-size: 0.95rem; }
+    .msg { display: flex; margin: 10px 0; }
     .msg.user { justify-content: flex-end; }
     .bubble {
-      max-width: 900px;
+      max-width: 860px;
       width: fit-content;
       border-radius: 14px;
-      padding: 12px 14px;
-      box-shadow: none;
+      padding: 12px 16px;
       border: 1px solid var(--border);
       background: var(--assistantBubble);
-      white-space: pre-wrap;
-      line-height: 1.35;
       font-size: 0.95rem;
+      line-height: 1.5;
     }
     .msg.user .bubble {
       background: var(--userBubble);
       color: var(--userText);
       border-color: var(--userBubble);
+      white-space: pre-wrap;
     }
-    .meta {
+
+    /* Analysis card */
+    .analysis-card { display: grid; gap: 10px; }
+    .card-section { display: grid; gap: 4px; }
+    .card-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
       color: var(--muted);
-      font-size: 0.85rem;
+    }
+    .card-value { font-size: 0.95rem; line-height: 1.5; color: var(--text); }
+    .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+    .tag {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 0.88rem;
+      color: var(--text);
+    }
+    details.raw-json {
+      margin-top: 10px;
+      border: none;
+      background: none;
+      padding: 0;
+    }
+    details.raw-json summary {
+      cursor: pointer;
+      font-size: 0.82rem;
+      color: var(--muted);
+      list-style: none;
+      font-weight: 500;
+    }
+    details.raw-json pre {
+      background: #f4f4f5;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 0.82rem;
+      overflow-x: auto;
       margin-top: 6px;
     }
+
+    /* ── COMPOSER ── */
     .composer {
       border-top: 1px solid var(--border);
-      background: var(--panel);
-      padding: 14px 18px;
+      background: var(--bg);
+      padding: 14px 18px 18px;
+      flex-shrink: 0;
     }
     .composer-inner {
-      max-width: 980px;
+      max-width: 900px;
       margin: 0 auto;
       display: grid;
       gap: 10px;
     }
-    details {
+    details.mpd-panel {
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 10px 12px;
-      background: #fff;
     }
-    summary {
+    details.mpd-panel summary {
       cursor: pointer;
       color: var(--muted);
       font-size: 0.9rem;
       font-weight: 500;
       list-style: none;
     }
-    summary::-webkit-details-marker { display: none; }
+    details.mpd-panel summary::-webkit-details-marker { display: none; }
+    /* Drag-and-drop drop zone */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #fafafa;
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .drop-zone.dragover {
+      border-color: #999;
+      background: #f0f0f1;
+    }
+    .drop-zone.has-file { border-color: #aaa; background: #f4f4f5; }
+    .drop-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: #e9e9eb;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      font-size: 1.2rem;
+    }
+    .drop-text { display: grid; gap: 2px; }
+    .drop-title { font-size: 0.9rem; font-weight: 500; color: var(--text); }
+    .drop-sub { font-size: 0.8rem; color: var(--muted); }
+    input[type="file"] { display: none; }
+
     textarea {
       width: 100%;
-      min-height: 90px;
+      min-height: 86px;
       resize: vertical;
-      padding: 12px 12px;
+      padding: 12px;
       font-family: inherit;
       font-size: 1rem;
       border: 1px solid var(--border);
@@ -144,186 +295,304 @@
       display: flex;
       gap: 10px;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       flex-wrap: wrap;
     }
-    .left {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
+    .hint { color: var(--muted); font-size: 0.88rem; flex: 1; }
     .btn {
       background: var(--btn);
       color: #fff;
       border: none;
       border-radius: 10px;
-      padding: 10px 14px;
+      padding: 10px 18px;
       cursor: pointer;
       font-weight: 500;
       font-size: 0.95rem;
+      font-family: inherit;
     }
     .btn:hover { background: var(--btnHover); }
-    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-    .ghost {
-      background: #fff;
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-    .ghost:hover { background: #f7f7f8; }
-    .hint { color: var(--muted); font-size: 0.9rem; }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
   </style>
 </head>
 <body>
+
+  <!-- TOP BAR -->
   <div class="topbar">
+    <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">☰</button>
     <div class="brand">
-      <div class="logo" title="Logo placeholder">DAE</div>
-      <div>Perkins</div>
+      <img class="logo" src="/static/dae-logo.jpg" alt="DAE" onerror="this.style.display='none'">
+      <span class="brand-name">Perkins</span>
     </div>
-    <a href="/logout">Log out</a>
+    <div class="user-info">
+      <span id="userName">…</span>
+      <a href="/logout">Log out</a>
+    </div>
   </div>
 
-  <div class="wrap">
-    <div class="messages" id="messages"></div>
-  </div>
+  <!-- BODY -->
+  <div class="shell">
 
-  <div class="composer">
-    <div class="composer-inner">
-      <details>
-        <summary>MPD context (optional)</summary>
-        <div style="margin-top: 10px;">
-          <textarea id="mpd" placeholder="Paste MPD task/data (or leave blank)."></textarea>
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        Conversations
+        <button id="newConvBtn">+ New</button>
+      </div>
+      <div class="conv-list" id="convList"></div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="messages" id="messages">
+        <div class="welcome" id="welcome">
+          <h2>Welcome to Perkins</h2>
+          <p>Upload a PDF, DOCX, XLSX or paste report text, then click Send.</p>
         </div>
-      </details>
+      </div>
 
-      <textarea id="input" placeholder="Paste report text, or upload a PDF/DOCX/XLSX/TXT…"></textarea>
+      <div class="composer">
+        <div class="composer-inner">
 
-      <div class="row">
-        <div class="left">
-          <input id="file" type="file" accept=\".pdf,.docx,.xlsx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain\" />
-          <button class="btn ghost" id="uploadBtn" type="button">Upload → Extract text</button>
-          <button class="btn ghost" id="clearBtn" type="button">Clear history</button>
-        </div>
-        <div class="left">
-          <span class="hint" id="status"></span>
-          <button class="btn" id="sendBtn" type="button">Send</button>
+          <details class="mpd-panel">
+            <summary>MPD context (optional)</summary>
+            <div style="margin-top:10px;">
+              <textarea id="mpd" rows="3" placeholder="Paste MPD task/data, or leave blank."></textarea>
+            </div>
+          </details>
+
+          <!-- Drag-and-drop zone -->
+          <div class="drop-zone" id="dropZone">
+            <div class="drop-icon">📄</div>
+            <div class="drop-text">
+              <div class="drop-title" id="dropTitle">Drop a file here or click to browse</div>
+              <div class="drop-sub">PDF, DOCX, XLSX or TXT · max 25 MB</div>
+            </div>
+            <input type="file" id="fileInput" accept=".pdf,.docx,.xlsx,.txt">
+          </div>
+
+          <textarea id="input" placeholder="Or paste report text here…"></textarea>
+
+          <div class="row">
+            <span class="hint" id="status"></span>
+            <button class="btn" id="sendBtn">Send</button>
+          </div>
         </div>
       </div>
     </div>
   </div>
-  <script>
-    const STORAGE_KEY = 'perkins_chat_history_v1';
-    const messagesEl = document.getElementById('messages');
-    const mpdEl = document.getElementById('mpd');
-    const inputEl = document.getElementById('input');
-    const sendBtn = document.getElementById('sendBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    const fileEl = document.getElementById('file');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const statusEl = document.getElementById('status');
 
-    function loadHistory() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : [];
-      } catch {
-        return [];
-      }
-    }
+<script>
+/* ===== state ===== */
+let currentConvId = null;
+let me = null;
 
-    function saveHistory(items) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(-200)));
-    }
+/* ===== helpers ===== */
+const $ = id => document.getElementById(id);
+async function api(url, opts = {}) {
+  const r = await fetch(url, { credentials: 'same-origin', ...opts });
+  if (r.status === 401) { location.href = '/login'; return null; }
+  return r;
+}
 
-    let history = loadHistory();
+/* ===== load me ===== */
+async function loadMe() {
+  const r = await api('/me');
+  if (!r || !r.ok) return;
+  me = await r.json();
+  $('userName').textContent = me.first_name + ' ' + me.last_name;
+}
 
-    function addMessage(role, text) {
-      const msg = { role, text, ts: Date.now() };
-      history.push(msg);
-      saveHistory(history);
-      render();
-    }
+/* ===== sidebar ===== */
+let sidebarOpen = true;
+$('sidebarToggle').addEventListener('click', () => {
+  sidebarOpen = !sidebarOpen;
+  $('sidebar').classList.toggle('closed', !sidebarOpen);
+});
 
-    function render() {
-      messagesEl.innerHTML = '';
-      for (const m of history) {
-        const row = document.createElement('div');
-        row.className = 'msg ' + (m.role === 'user' ? 'user' : 'assistant');
-        const bubble = document.createElement('div');
-        bubble.className = 'bubble';
-        bubble.textContent = m.text;
-        row.appendChild(bubble);
-        messagesEl.appendChild(row);
-      }
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-    }
+async function loadConversations() {
+  const r = await api('/conversations');
+  if (!r || !r.ok) return;
+  const convs = await r.json();
+  const list = $('convList');
+  list.innerHTML = '';
+  for (const c of convs) {
+    const el = document.createElement('div');
+    el.className = 'conv-item' + (c.id === currentConvId ? ' active' : '');
+    el.textContent = c.title;
+    el.dataset.id = c.id;
+    el.addEventListener('click', () => openConversation(c.id));
+    list.appendChild(el);
+  }
+}
 
-    render();
+$('newConvBtn').addEventListener('click', async () => {
+  const r = await api('/conversations', { method: 'POST' });
+  if (!r || !r.ok) return;
+  const c = await r.json();
+  currentConvId = c.id;
+  $('messages').innerHTML = '<div class="welcome" id="welcome"><h2>New conversation</h2><p>Paste text or upload a file to start.</p></div>';
+  await loadConversations();
+});
 
-    async function apiJson(url, options) {
-      const r = await fetch(url, { credentials: 'same-origin', ...options });
-      if (r.status === 401) { window.location.href = '/login'; return null; }
-      return r;
-    }
+async function openConversation(id) {
+  currentConvId = id;
+  await loadConversations();
+  const r = await api(`/conversations/${id}/messages`);
+  if (!r || !r.ok) return;
+  const msgs = await r.json();
+  const el = $('messages');
+  el.innerHTML = '';
+  if (!msgs.length) {
+    el.innerHTML = '<div class="welcome"><h2>Empty conversation</h2><p>Send a message to start.</p></div>';
+  } else {
+    for (const m of msgs) renderMessage(m.role, m.content, m.raw_json, false);
+  }
+  el.scrollTop = el.scrollHeight;
+}
 
-    uploadBtn.addEventListener('click', async () => {
-      const f = fileEl.files && fileEl.files[0];
-      if (!f) { statusEl.textContent = 'Choose a file first.'; return; }
-      statusEl.textContent = 'Extracting…';
-      uploadBtn.disabled = true;
-      try {
-        const fd = new FormData();
-        fd.append('file', f);
-        const r = await apiJson('/upload', { method: 'POST', body: fd });
-        if (!r) return;
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.detail || r.statusText);
-        inputEl.value = data.text || '';
-        statusEl.textContent = data.warning ? data.warning : 'Text extracted. Ready to send.';
-      } catch (e) {
-        statusEl.textContent = e.message || String(e);
-      } finally {
-        uploadBtn.disabled = false;
-      }
-    });
+/* ===== message rendering ===== */
+function renderMessage(role, content, rawJson, scroll = true) {
+  const welcome = $('welcome');
+  if (welcome) welcome.remove();
 
-    clearBtn.addEventListener('click', () => {
-      history = [];
-      saveHistory(history);
-      render();
-      statusEl.textContent = 'History cleared.';
-    });
+  const row = document.createElement('div');
+  row.className = 'msg ' + role;
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
 
-    async function send() {
-      const report = (inputEl.value || '').trim();
-      const mpd = (mpdEl.value || '').trim();
-      if (!report) { statusEl.textContent = 'Paste text or upload a file first.'; return; }
-      sendBtn.disabled = true;
-      statusEl.textContent = 'Analyzing…';
-      addMessage('user', report);
-      try {
-        const r = await apiJson('/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ report_text: report, mpd_context: mpd })
-        });
-        if (!r) return;
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.detail || r.statusText);
-        addMessage('assistant', JSON.stringify(data, null, 2));
-        inputEl.value = '';
-        statusEl.textContent = '';
-      } catch (e) {
-        addMessage('assistant', `Error: ${e.message || String(e)}`);
-        statusEl.textContent = e.message || String(e);
-      }
-      sendBtn.disabled = false;
-    }
+  if (role === 'assistant') {
+    bubble.innerHTML = renderAnalysis(content, rawJson);
+  } else {
+    bubble.textContent = content;
+  }
 
-    sendBtn.addEventListener('click', send);
-    inputEl.addEventListener('keydown', (ev) => {
-      if ((ev.metaKey || ev.ctrlKey) && ev.key === 'Enter') send();
-    });
-  </script>
+  row.appendChild(bubble);
+  $('messages').appendChild(row);
+  if (scroll) $('messages').scrollTop = $('messages').scrollHeight;
+}
+
+function renderAnalysis(content, rawJson) {
+  let parsed = null;
+  try { if (rawJson) parsed = JSON.parse(rawJson); } catch {}
+
+  if (!parsed) {
+    return `<div class="card-value" style="white-space:pre-wrap;">${esc(content)}</div>`;
+  }
+
+  const { discrepancies = [], driver = '', recommendations = [], compliance_notes = '', analysis = '' } = parsed;
+  const parts = [];
+
+  if (analysis) {
+    parts.push(`<div class="card-section"><div class="card-label">Summary</div><div class="card-value" style="white-space:pre-wrap;">${esc(analysis)}</div></div>`);
+  }
+  if (discrepancies.length) {
+    parts.push(`<div class="card-section"><div class="card-label">Discrepancies</div><div class="tag-list">${discrepancies.map(d => `<span class="tag">${esc(d)}</span>`).join('')}</div></div>`);
+  }
+  if (driver) {
+    parts.push(`<div class="card-section"><div class="card-label">Driver / Cause</div><div class="card-value">${esc(driver)}</div></div>`);
+  }
+  if (recommendations.length) {
+    parts.push(`<div class="card-section"><div class="card-label">Recommendations</div><div class="tag-list">${recommendations.map(r => `<span class="tag">${esc(r)}</span>`).join('')}</div></div>`);
+  }
+  if (compliance_notes) {
+    parts.push(`<div class="card-section"><div class="card-label">Compliance</div><div class="card-value">${esc(compliance_notes)}</div></div>`);
+  }
+
+  const raw = `<details class="raw-json"><summary>▶ Show raw JSON</summary><pre>${esc(JSON.stringify(parsed, null, 2))}</pre></details>`;
+  return `<div class="analysis-card">${parts.join('')}${raw}</div>`;
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ===== drag-and-drop ===== */
+const dropZone = $('dropZone');
+const fileInput = $('fileInput');
+let pendingFile = null;
+
+function setFile(f) {
+  if (!f) return;
+  pendingFile = f;
+  $('dropTitle').textContent = `📎 ${f.name}`;
+  dropZone.classList.add('has-file');
+}
+
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => {
+  if (fileInput.files && fileInput.files[0]) setFile(fileInput.files[0]);
+});
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files && e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+});
+
+/* ===== ensure active conversation ===== */
+async function ensureConversation() {
+  if (currentConvId) return;
+  const r = await api('/conversations', { method: 'POST' });
+  if (!r || !r.ok) return;
+  const c = await r.json();
+  currentConvId = c.id;
+}
+
+/* ===== send ===== */
+$('sendBtn').addEventListener('click', send);
+$('input').addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send();
+});
+
+async function send() {
+  const text = ($('input').value || '').trim();
+  const mpd = ($('mpd').value || '').trim();
+  const file = pendingFile;
+
+  if (!text && !file) { $('status').textContent = 'Type or upload a file first.'; return; }
+
+  await ensureConversation();
+
+  $('sendBtn').disabled = true;
+  $('status').textContent = 'Analyzing…';
+
+  const label = file ? `📎 ${file.name}` : text;
+  renderMessage('user', label);
+
+  const fd = new FormData();
+  if (file) fd.append('file', file);
+  if (text) fd.append('report_text', text);
+  if (mpd) fd.append('mpd_context', mpd);
+
+  // clear inputs
+  $('input').value = '';
+  pendingFile = null;
+  fileInput.value = '';
+  $('dropTitle').textContent = 'Drop a file here or click to browse';
+  dropZone.classList.remove('has-file');
+
+  try {
+    const r = await api(`/conversations/${currentConvId}/analyze`, { method: 'POST', body: fd });
+    if (!r) return;
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || r.statusText);
+    renderMessage('assistant', data.analysis, JSON.stringify(data));
+    $('status').textContent = '';
+  } catch (e) {
+    renderMessage('assistant', `Error: ${e.message || String(e)}`);
+    $('status').textContent = e.message || String(e);
+  }
+
+  $('sendBtn').disabled = false;
+  await loadConversations();
+}
+
+/* ===== init ===== */
+(async () => {
+  await loadMe();
+  await loadConversations();
+})();
+</script>
 </body>
 </html>

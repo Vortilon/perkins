@@ -128,14 +128,16 @@
 <body>
   <div class="card">
     <div class="logo">
-      <!-- Replace with <img src="/static/logo.png" alt="DAE"> when you have the logo -->
-      <span class="logo-placeholder" aria-hidden="true">DAE</span>
+      <img src="/static/dae-logo.jpg" alt="DAE" onerror="this.style.display='none';document.getElementById('dae-fallback').style.display='inline';">
+      <span id="dae-fallback" class="logo-placeholder" aria-hidden="true" style="display:none;">DAE</span>
     </div>
     <h1>Welcome back</h1>
     <p class="subtitle">Log in to Perkins AI</p>
     <form method="post" action="/login" id="form">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" placeholder="Enter your username" autocomplete="username" required autofocus>
       <label for="password">Password</label>
-      <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required autofocus>
+      <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required>
       <button type="submit" id="btn">Log in</button>
     </form>
     <p class="error" id="error" role="alert" style="display: none;"></p>
@@ -146,7 +148,7 @@
     const btn = document.getElementById('btn');
     const params = new URLSearchParams(window.location.search);
     if (params.get('error') === 'auth') {
-      errorEl.textContent = 'Invalid password. Try again.';
+      errorEl.textContent = 'Invalid username or password. Try again.';
       errorEl.style.display = 'block';
     }
     form.addEventListener('submit', function() {

@@ -9,3 +9,5 @@ itsdangerous>=2.1.0
 pypdf>=6.0.0
 python-docx>=1.0.0
 openpyxl>=3.1.0
+SQLAlchemy>=2.0.0
+passlib[bcrypt]>=1.7.4
