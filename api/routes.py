@@ -376,3 +376,58 @@ async def ping():
     """Health check; no auth required."""
     ok = ollama_ping()
     return {"status": "ok", "ollama": ok}
+
+
+# ── Service-to-service query (for Scopewrath embedding) ──────────────────────
+
+class ServiceQueryIn(BaseModel):
+    query: str
+    dataset_id: int | None = None
+    context: str = ""  # optional extra context (e.g. project MSN, check type, task list excerpt)
+
+
+class ServiceQueryOut(BaseModel):
+    answer: str
+    mpd_reference_source: str = ""
+    mpd_task_count: int = 0
+    ata_chapters_queried: list[str] = []
+
+
+def _service_api_key(request: Request) -> None:
+    """Validate X-API-Key for service-to-service calls."""
+    expected = os.environ.get("PERKINS_SERVICE_KEY", "")
+    if not expected:
+        return  # key not configured → open (internal network only)
+    provided = request.headers.get("X-API-Key", "")
+    if provided != expected:
+        raise HTTPException(status_code=403, detail="Invalid service API key")
+
+
+@router.post("/api/service/query", response_model=ServiceQueryOut)
+async def service_query(
+    body: ServiceQueryIn,
+    request: Request,
+    _: None = Depends(_service_api_key),
+):
+    """
+    Server-to-server query endpoint.
+    Scopewrath (or any internal service) sends a plain text question
+    plus optional context and dataset_id.
+    Returns a human-readable answer grounded in MPD data when dataset_id is given.
+    No session cookie required — secured by X-API-Key header.
+    """
+    text = body.query.strip()
+    if body.context.strip():
+        text = f"{body.context.strip()}\n\n---\n\n{text}"
+    if not text:
+        raise HTTPException(status_code=422, detail="query must not be empty")
+    try:
+        result = await compare_report_mpd(text, "", dataset_id=body.dataset_id)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AI error: {e!s}")
+    return ServiceQueryOut(
+        answer=result.get("analysis", ""),
+        mpd_reference_source=result.get("mpd_reference_source", ""),
+        mpd_task_count=result.get("mpd_task_count", 0),
+        ata_chapters_queried=result.get("ata_chapters_queried", []),
+    )

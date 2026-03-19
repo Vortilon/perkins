@@ -14,8 +14,10 @@ _TIMEOUT = 20.0
 
 # Airbus-style:  291000-06-1  291000-06-1-L  ZL-131-01-1
 # ATR-style:     122111-CLN-10000-1   321211-CHK-10000-1
+# Boeing-style:  20-001-00   32-011-00   05-12-09-1
 _TASK_RE = re.compile(
-    r"\b([A-Z]{0,3}\d{5,6}-(?:[A-Z]{2,3}|\d{2})-[A-Z0-9]+-?\d*(?:-[A-Z0-9]{1,2})?)\b"
+    r"\b([A-Z]{0,3}\d{5,6}-(?:[A-Z]{2,3}|\d{2})-[A-Z0-9]+-?\d*(?:-[A-Z0-9]{1,2})?)"
+    r"|(\d{2}-\d{3}-\d{2}(?:-\d+)?)\b"
 )
 
 # ATA chapter = first two digits of the numeric prefix (both formats)
@@ -28,6 +30,11 @@ _ATA_EXPLICIT_RE = re.compile(r"\bATA[\s-]?(\d{2})\b", re.IGNORECASE)
 _task_cache: dict[int, list[dict]] = {}
 
 
+def _match_to_ref(m: re.Match) -> str:
+    """Return the task reference string from a regex match (handles alternation)."""
+    return m.group(1) or m.group(2) or ""
+
+
 def extract_ata_chapters(text: str) -> list[str]:
     """Return sorted list of unique ATA chapter strings found in text."""
     chapters: set[str] = set()
@@ -36,7 +43,7 @@ def extract_ata_chapters(text: str) -> list[str]:
         chapters.add(m.group(1).lstrip("0") or "0")
 
     for m in _TASK_RE.finditer(text):
-        ref = m.group(1)
+        ref = _match_to_ref(m)
         m2 = _ATA_FROM_TASK_RE.match(ref)
         if m2:
             chapters.add(m2.group(0).lstrip("0") or "0")
@@ -46,7 +53,7 @@ def extract_ata_chapters(text: str) -> list[str]:
 
 def extract_task_references(text: str) -> list[str]:
     """Return sorted unique task references found in text."""
-    return sorted({m.group(1) for m in _TASK_RE.finditer(text)})
+    return sorted({_match_to_ref(m) for m in _TASK_RE.finditer(text) if _match_to_ref(m)})
 
 
 # ── API calls ─────────────────────────────────────────────────────────────────
@@ -127,6 +134,7 @@ async def get_tasks(
         return []
 
     # Filter: task_reference starts with any requested ATA chapter (2-digit prefix)
+    # Works for Airbus (291000-06-1), ATR (321211-CHK-10000-1), Boeing (20-001-00)
     matched: list[dict] = []
     for t in all_tasks:
         ref = t.get("task_reference") or t.get("task_number") or ""
