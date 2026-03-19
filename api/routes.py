@@ -13,6 +13,7 @@ from auth import create_token, verify_password, verify_token, COOKIE_NAME, hash_
 from db import db_session
 from models_db import Conversation, Message, User
 from extraction.extractors import extract_text
+from mpd_client import get_datasets, get_tasks
 
 router = APIRouter()
 
@@ -130,6 +131,10 @@ class AnalyzeResponse(BaseModel):
     compliance_notes: str
     conversation_id: int
     message_id: int
+    mpd_reference_source: str = ""
+    mpd_task_count: int = 0
+    ata_chapters_queried: list[str] = []
+    dataset_id: int | None = None
 
 
 @router.post("/upload")
@@ -246,12 +251,31 @@ async def get_messages(conversation_id: int, user: User = Depends(require_user))
         ]
 
 
+@router.get("/mpd/datasets")
+async def mpd_datasets(user: User = Depends(require_user)):
+    """Proxy: list MPD datasets from Scopewrath."""
+    return await get_datasets()
+
+
+@router.get("/mpd/datasets/{dataset_id}/tasks")
+async def mpd_tasks(
+    dataset_id: int,
+    section: str = "",
+    limit: int = 200,
+    user: User = Depends(require_user),
+):
+    """Proxy: list MPD tasks for a dataset (optional ATA section filter)."""
+    sections = [section] if section else []
+    return await get_tasks(dataset_id, sections=sections, limit=limit)
+
+
 @router.post("/conversations/{conversation_id}/analyze", response_model=AnalyzeResponse)
 async def analyze_conversation(
     conversation_id: int,
     request: Request,
     report_text: str = Form(""),
     mpd_context: str = Form(""),
+    dataset_id: str = Form(""),
     file: UploadFile | None = File(default=None),
     user: User = Depends(require_user),
 ):
@@ -292,9 +316,10 @@ async def analyze_conversation(
             title = " ".join(text.split()[:8]).strip()
             c.title = title[:200] if title else "New conversation"
 
-        mpd = (mpd_context or "").strip() or "No MPD context provided."
+        mpd = (mpd_context or "").strip() or ""
+        ds_id: int | None = int(dataset_id) if dataset_id.strip().isdigit() else None
     try:
-        result = await compare_report_mpd(text, mpd)
+        result = await compare_report_mpd(text, mpd, dataset_id=ds_id)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Ollama/perkins-ai error: {e!s}")
 
@@ -329,6 +354,10 @@ async def analyze_conversation(
             compliance_notes=result.get("compliance_notes", ""),
             conversation_id=conversation_id,
             message_id=assistant_msg.id,
+            mpd_reference_source=result.get("mpd_reference_source", ""),
+            mpd_task_count=result.get("mpd_task_count", 0),
+            ata_chapters_queried=result.get("ata_chapters_queried", []),
+            dataset_id=result.get("dataset_id"),
         )
 
 

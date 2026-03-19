@@ -1,50 +1,101 @@
-"""Core logic: compare extracted report text vs MPD (DB or file); returns structured analysis."""
+"""Core analysis logic: auto-fetch verified MPD data, build grounded prompt, parse response."""
 from __future__ import annotations
 
 from typing import Any
 
-# App-level ollama client (caller must have perkins root on path or run from app)
 from models.ollama_client import analyze_async
-
-
-# Placeholder: future MPD DB/API call to other VPS
-# def fetch_mpd_from_api(ident: str, **params: Any) -> str:
-#     r = requests.get("http://other-vps/mpd", params={"task": ident, **params})
-#     return r.text if r.ok else ""
+from mpd_client import (
+    extract_ata_chapters,
+    extract_task_references,
+    get_datasets,
+    get_tasks,
+    format_reference_block,
+)
 
 
 def parse_analysis(raw: str) -> dict[str, Any]:
-    """Parse model output into structured fields (discrepancies, driver, recommendations, compliance)."""
-    out = {
+    """
+    Parse model output into structured fields.
+    Works for both grounded (verified data) and ungrounded responses.
+    """
+    out: dict[str, Any] = {
         "analysis": raw,
         "discrepancies": [],
         "driver": "",
         "recommendations": [],
         "compliance_notes": "",
     }
-    raw_lower = raw.lower()
-    # Extract list-like lines for discrepancies and recommendations
     for line in raw.split("\n"):
         line = line.strip()
         if not line:
             continue
-        if line.lower().startswith("- discrepancy") or line.lower().startswith("discrepancy:"):
+        ll = line.lower()
+        if ll.startswith(("- discrepancy", "discrepancy:")):
             out["discrepancies"].append(line.split(":", 1)[-1].strip() or line)
-        elif line.lower().startswith("- driver") or line.lower().startswith("driver:"):
+        elif ll.startswith(("- driver", "driver:", "- cause", "cause:")):
             out["driver"] = line.split(":", 1)[-1].strip() or line
-        elif line.lower().startswith("- recommendation") or line.lower().startswith("recommendation:"):
+        elif ll.startswith(("- recommendation", "recommendation:")):
             out["recommendations"].append(line.split(":", 1)[-1].strip() or line)
-        elif "compliance" in line.lower():
-            out["compliance_notes"] = line.split(":", 1)[-1].strip() if ":" in line else line
-    if not out["discrepancies"] and "discrepan" in raw_lower:
-        out["discrepancies"].append(raw)
+        elif "compliance" in ll:
+            out["compliance_notes"] = (
+                line.split(":", 1)[-1].strip() if ":" in line else line
+            )
     return out
 
 
 async def compare_report_mpd(
     report_text: str,
-    mpd_context: str,
+    mpd_context: str = "",
+    dataset_id: int | None = None,
 ) -> dict[str, Any]:
-    """Compare report text vs MPD context via Ollama; return structured JSON-friendly dict."""
-    raw = await analyze_async(report_text, mpd_context)
-    return parse_analysis(raw)
+    """
+    Analyse report_text against verified MPD data.
+
+    Steps:
+    1. Extract ATA chapters + task references from report_text.
+    2. If dataset_id provided, query Scopewrath API for matching tasks.
+    3. Build grounded reference block → inject into prompt.
+    4. Call Ollama → parse response.
+    """
+    reference_data = ""
+    reference_source = ""
+    mpd_task_count = 0
+    ata_chapters: list[str] = []
+    dataset_info: dict | None = None
+
+    if dataset_id is not None:
+        ata_chapters = extract_ata_chapters(report_text)
+        task_refs = extract_task_references(report_text)
+
+        # If no ATA detected from the text itself, try from the manual mpd_context too
+        if not ata_chapters and mpd_context:
+            ata_chapters = extract_ata_chapters(mpd_context)
+            task_refs += extract_task_references(mpd_context)
+
+        if ata_chapters or task_refs:
+            tasks = await get_tasks(
+                dataset_id,
+                sections=ata_chapters,
+                task_references=task_refs,
+            )
+            if tasks:
+                # Get dataset metadata for the source label
+                datasets = await get_datasets()
+                dataset_info = next((d for d in datasets if d["id"] == dataset_id), None)
+                reference_data, reference_source = format_reference_block(
+                    tasks, dataset_info, ata_chapters
+                )
+                mpd_task_count = len(tasks)
+
+    raw = await analyze_async(
+        report_text,
+        mpd_context=mpd_context,
+        reference_data=reference_data,
+    )
+
+    result = parse_analysis(raw)
+    result["mpd_reference_source"] = reference_source
+    result["mpd_task_count"] = mpd_task_count
+    result["ata_chapters_queried"] = ata_chapters
+    result["dataset_id"] = dataset_id
+    return result
