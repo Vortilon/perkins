@@ -8,20 +8,24 @@ from typing import Any
 import httpx
 
 MPD_BASE = os.environ.get("SCOPEWRATH_API_URL", "https://mpd.noteify.us").rstrip("/")
-_TIMEOUT = 15.0
+_TIMEOUT = 20.0
 
 # ── ATA / task-reference extraction ──────────────────────────────────────────
 
-# Matches full MPD task references, e.g. 291000-06-1  291000-06-1-L  ZL-131-01-1
+# Airbus-style:  291000-06-1  291000-06-1-L  ZL-131-01-1
+# ATR-style:     122111-CLN-10000-1   321211-CHK-10000-1
 _TASK_RE = re.compile(
-    r"\b([A-Z]{0,3}\d{5,6}-[A-Z0-9]{2}-\d+(?:-[A-Z0-9]{1,2})?)\b"
+    r"\b([A-Z]{0,3}\d{5,6}-(?:[A-Z]{2,3}|\d{2})-[A-Z0-9]+-?\d*(?:-[A-Z0-9]{1,2})?)\b"
 )
 
-# ATA chapter from first two digits of a numeric task ref, e.g. 291000 → "29"
+# ATA chapter = first two digits of the numeric prefix (both formats)
 _ATA_FROM_TASK_RE = re.compile(r"^\d{2}")
 
 # Explicit "ATA 32" or "ATA32" mentions
 _ATA_EXPLICIT_RE = re.compile(r"\bATA[\s-]?(\d{2})\b", re.IGNORECASE)
+
+# Simple cache: dataset_id → list of all tasks (refreshed per process startup)
+_task_cache: dict[int, list[dict]] = {}
 
 
 def extract_ata_chapters(text: str) -> list[str]:
@@ -58,6 +62,39 @@ async def get_datasets() -> list[dict[str, Any]]:
         return []
 
 
+async def _fetch_all_tasks(dataset_id: int) -> list[dict[str, Any]]:
+    """
+    Fetch ALL tasks for a dataset in one call (max 1000 per page).
+    Results are cached in _task_cache for the process lifetime.
+    """
+    if dataset_id in _task_cache:
+        return _task_cache[dataset_id]
+
+    all_tasks: list[dict] = []
+    offset = 0
+    batch = 1000
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        while True:
+            try:
+                r = await client.get(
+                    f"{MPD_BASE}/api/mpd/datasets/{dataset_id}/tasks",
+                    params={"limit": batch, "offset": offset},
+                )
+                r.raise_for_status()
+                page = r.json()
+                if not page:
+                    break
+                all_tasks.extend(page)
+                if len(page) < batch:
+                    break
+                offset += batch
+            except Exception:
+                break
+
+    _task_cache[dataset_id] = all_tasks
+    return all_tasks
+
+
 async def get_tasks(
     dataset_id: int,
     *,
@@ -66,40 +103,40 @@ async def get_tasks(
     limit: int = 200,
 ) -> list[dict[str, Any]]:
     """
-    Fetch MPD tasks for a dataset.
-    If sections provided, fetches one batch per section.
-    If task_references provided and sections empty, derives sections automatically.
+    Return MPD tasks matching the given ATA chapters (sections) and/or task references.
+
+    ATA chapter matching works for both:
+    - Airbus format: 291000-06-1 → ATA "29" (first 2 digits of 6-digit prefix)
+    - ATR format:    321211-CHK-10000-1 → ATA "32" (first 2 digits of 6-digit prefix)
+    The API's `section` field uses manufacturer-internal numbering, so we fetch
+    all tasks once and filter locally by task_reference prefix.
     """
-    all_tasks: dict[int, dict] = {}  # id → task, dedup
+    all_tasks = await _fetch_all_tasks(dataset_id)
+    if not all_tasks:
+        return []
 
-    atas_to_fetch: list[str] = list(sections or [])
-
-    # Also derive ATA from explicit task references
+    # Build ATA chapter set to filter by
+    ata_set: set[str] = set(sections or [])
     if task_references:
         for ref in task_references:
             m = _ATA_FROM_TASK_RE.match(ref)
             if m:
-                ata = m.group(0).lstrip("0") or "0"
-                if ata not in atas_to_fetch:
-                    atas_to_fetch.append(ata)
+                ata_set.add(m.group(0).lstrip("0") or "0")
 
-    if not atas_to_fetch:
+    if not ata_set:
         return []
 
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        for section in atas_to_fetch:
-            try:
-                r = await client.get(
-                    f"{MPD_BASE}/api/mpd/datasets/{dataset_id}/tasks",
-                    params={"section": section, "limit": limit},
-                )
-                r.raise_for_status()
-                for t in r.json():
-                    all_tasks[t["id"]] = t
-            except Exception:
-                continue
+    # Filter: task_reference starts with any requested ATA chapter (2-digit prefix)
+    matched: list[dict] = []
+    for t in all_tasks:
+        ref = t.get("task_reference") or t.get("task_number") or ""
+        m = _ATA_FROM_TASK_RE.match(ref)
+        if m and (m.group(0).lstrip("0") or "0") in ata_set:
+            matched.append(t)
+        if len(matched) >= limit:
+            break
 
-    return list(all_tasks.values())
+    return matched
 
 
 # ── Formatting for prompt injection ──────────────────────────────────────────
