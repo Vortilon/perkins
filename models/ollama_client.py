@@ -1,4 +1,5 @@
 """Ollama client wrapper for Perkins AI (perkins-ai model)."""
+import json as _json
 import httpx
 
 OLLAMA_BASE = "http://127.0.0.1:11434"
@@ -94,6 +95,36 @@ async def analyze_async(
         )
         r.raise_for_status()
         return r.json().get("response", "").strip()
+
+
+async def analyze_stream(
+    report_text: str,
+    mpd_context: str = "",
+    reference_data: str = "",
+    *,
+    timeout: float = TIMEOUT,
+):
+    """Async generator yielding (token: str, done: bool) pairs from Ollama streaming API."""
+    prompt = _build_prompt(report_text, mpd_context, reference_data)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        async with client.stream(
+            "POST",
+            f"{OLLAMA_BASE}/api/generate",
+            json={"model": MODEL, "prompt": prompt, "stream": True},
+        ) as response:
+            response.raise_for_status()
+            async for line in response.aiter_lines():
+                if not line.strip():
+                    continue
+                try:
+                    data = _json.loads(line)
+                    token = data.get("response", "")
+                    done = bool(data.get("done", False))
+                    yield token, done
+                    if done:
+                        break
+                except Exception:
+                    continue
 
 
 def ping() -> bool:

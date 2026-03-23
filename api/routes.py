@@ -1,13 +1,14 @@
 """FastAPI routes: auth, users, conversations, analyze/upload, UI, health."""
+import json as _json
 import os
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel
 
 from comparison.comparator import compare_report_mpd
-from models.ollama_client import ping as ollama_ping
+from models.ollama_client import ping as ollama_ping, analyze_stream as ollama_stream
 
 from auth import create_token, verify_password, verify_token, COOKIE_NAME, hash_password
 from db import db_session
@@ -430,4 +431,55 @@ async def service_query(
         mpd_reference_source=result.get("mpd_reference_source", ""),
         mpd_task_count=result.get("mpd_task_count", 0),
         ata_chapters_queried=result.get("ata_chapters_queried", []),
+    )
+
+
+@router.post("/api/service/stream")
+async def service_stream(
+    body: ServiceQueryIn,
+    request: Request,
+    _: None = Depends(_service_api_key),
+):
+    """SSE streaming version of /api/service/query.
+    Yields tokens as they arrive from Ollama so the browser can show partial results
+    without hitting any proxy timeout.
+    SSE format: data: {"token": "..."}\n\n  or  data: {"done": true, ...}\n\n
+    """
+    text = body.query.strip()
+    if body.context.strip():
+        text = f"{body.context.strip()}\n\n---\n\n{text}"
+    if not text:
+        raise HTTPException(status_code=422, detail="query must not be empty")
+
+    async def _generate():
+        ref_data = ""
+        mpd_src = ""
+        mpd_count = 0
+        if body.dataset_id:
+            try:
+                tasks = await get_tasks(body.dataset_id, sections=[], limit=60)
+                if tasks:
+                    lines = [
+                        f"Ref:{t.get('task_reference','')} Thr:{t.get('threshold_raw','')} Int:{t.get('interval_raw','')} Eff:{(t.get('applicability_raw') or '')[:60]}"
+                        for t in tasks[:60]
+                    ]
+                    ref_data = "VERIFIED MPD REFERENCE DATA\n" + "\n".join(lines)
+                    mpd_count = len(tasks)
+            except Exception:
+                pass
+
+        try:
+            async for token, done in ollama_stream(text, reference_data=ref_data):
+                if token:
+                    yield f"data: {_json.dumps({'token': token})}\n\n"
+                if done:
+                    yield f"data: {_json.dumps({'done': True, 'mpd_reference_source': mpd_src, 'mpd_task_count': mpd_count})}\n\n"
+                    return
+        except Exception as exc:
+            yield f"data: {_json.dumps({'error': str(exc)})}\n\n"
+
+    return StreamingResponse(
+        _generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
