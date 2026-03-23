@@ -3,7 +3,7 @@ import httpx
 
 OLLAMA_BASE = "http://127.0.0.1:11434"
 MODEL = "perkins-ai"
-TIMEOUT = 180.0
+TIMEOUT = 540.0
 
 
 def _build_prompt(
