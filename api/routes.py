@@ -457,11 +457,44 @@ async def service_stream(
         mpd_count = 0
         if body.dataset_id:
             try:
-                tasks = await get_tasks(body.dataset_id, sections=[], limit=60)
+                # ── Smart context retrieval ──────────────────────────────────
+                # Extract ATA chapter numbers from the query (e.g. "32", "05-10", "ATA32")
+                import re as _re
+                query_upper = text.upper()
+                ata_hits = _re.findall(
+                    r'\bATA\s*(\d{2})\b|\b(\d{2})-\d{2}\b|\bCHAPTER\s+(\d{2})\b',
+                    query_upper,
+                )
+                sections = list({g for groups in ata_hits for g in groups if g})
+
+                # Also extract bare task-reference patterns like "32-41-01" or "05-51-ZA-101"
+                task_refs = _re.findall(r'\b\d{2}-\d{2}[-\w]+\b', query_upper)
+
+                if sections:
+                    # Fetch tasks for detected ATA chapters (up to 10 per chapter)
+                    tasks: list = []
+                    for sec in sections[:3]:          # max 3 chapters at once
+                        chunk = await get_tasks(body.dataset_id, sections=[sec], limit=10)
+                        tasks.extend(chunk or [])
+                    tasks = tasks[:10]
+                elif task_refs:
+                    # No chapter detected but specific task refs — fetch wider and filter
+                    all_tasks = await get_tasks(body.dataset_id, sections=[], limit=200)
+                    tasks = [
+                        t for t in (all_tasks or [])
+                        if any(ref in (t.get("task_reference") or "").upper() for ref in task_refs)
+                    ][:10]
+                else:
+                    # General question with a dataset — fetch first 10 tasks as context sample
+                    tasks = await get_tasks(body.dataset_id, sections=[], limit=10) or []
+
                 if tasks:
                     lines = [
-                        f"Ref:{t.get('task_reference','')} Thr:{t.get('threshold_raw','')} Int:{t.get('interval_raw','')} Eff:{(t.get('applicability_raw') or '')[:60]}"
-                        for t in tasks[:60]
+                        f"Ref:{t.get('task_reference','')} "
+                        f"Thr:{t.get('threshold_raw','')} "
+                        f"Int:{t.get('interval_raw','')} "
+                        f"Eff:{(t.get('applicability_raw') or '')[:50]}"
+                        for t in tasks
                     ]
                     ref_data = "VERIFIED MPD REFERENCE DATA\n" + "\n".join(lines)
                     mpd_count = len(tasks)
